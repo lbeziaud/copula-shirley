@@ -1,17 +1,10 @@
 import numpy as np
 import pandas as pd
+import pyvinecopulib as pv
 
-import rpy2.robjects.numpy2ri
-import rpy2.robjects as robjects
-from rpy2.robjects.packages import importr
-robjects.numpy2ri.activate()
+from .transform import TransformToNatualScale
 
-rbase = importr('base')
-rvinecop = importr('rvinecopulib')
-
-from transform import TransformToNatualScale
-
-def GetVineStructure(pseudo_observations, vine_family_set='all', vine_par_method="mle", vine_nonpar_method="constant", vine_selcrit="aic", vine_trunc_lvl=robjects.NA_Integer, vine_tree_crit="tau", vine_cores=1):
+def GetVineStructure(pseudo_observations, vine_family_set='all', vine_par_method="mle", vine_nonpar_method="constant", vine_selcrit="aic", vine_trunc_lvl=None, vine_tree_crit="tau", vine_cores=1):
     """Estimate the vine-copula structure from the pseudo-observations. Uses the R library rvinecopulib.
     
     See https://vinecopulib.github.io/rvinecopulib/reference/vinecop.html for more informations on the vine-copula parameters.
@@ -28,25 +21,34 @@ def GetVineStructure(pseudo_observations, vine_family_set='all', vine_par_method
         vine_cores (int, optional): The number of cores to use. Defaults to 1.
 
     Returns:
-        object: An R vine-copula structure estimated from the pseudo-observations.
+        Vinecop: An R vine-copula structure estimated from the pseudo-observations.
     """
-    if vine_trunc_lvl == None: vine_trunc_lvl = robjects.NA_Integer
-    if vine_trunc_lvl == 0: vine_trunc_lvl = np.inf
-    return rvinecop.vinecop(pseudo_observations,
-                            family_set = vine_family_set,
-                            par_method = vine_par_method,
-                            nonpar_method = vine_nonpar_method,
-                            selcrit = vine_selcrit,
-                            trunc_lvl = vine_trunc_lvl,
-                            tree_crit = vine_tree_crit,
-                            cores = vine_cores
-                           )
+    if vine_trunc_lvl is None:
+        kwargs_trunc = dict(select_trunc_lvl=True)
+    elif vine_trunc_lvl == 0:
+        kwargs_trunc = dict(select_trunc_lvl=False)
+    else:
+        kwargs_trunc = dict(select_trunc_lvl=False, trunc_level=vine_trunc_lvl)
+
+    if isinstance(vine_family_set, str):
+        vine_family_set = getattr(pv, vine_family_set)
+
+    controls = pv.FitControlsVinecop(family_set=vine_family_set,
+                                     parametric_method=vine_par_method,
+                                     nonparametric_method=vine_nonpar_method,
+                                     **kwargs_trunc,
+                                     tree_criterion=vine_tree_crit,
+                                     selection_criterion=vine_selcrit,
+                                     num_threads=vine_cores
+                                     )
+    cop = pv.Vinecop(pseudo_observations, controls=controls)
+    return cop
     
 def GetSamplesFromVine(vine_struct, n_sample, col_names, dp_ecdfs, vine_cores=1):
     """Generate samples from the vine-copula model.
 
     Args:
-        vine_struct (object): An R vine-copula structure.
+        vine_struct (Vinecop): An R vine-copula structure.
         n_sample (int): The numer of sample to generate.
         col_names (list): The column names of the original data.
         dp_ecdfs (dict): A dictionary of ECDFs.
@@ -55,7 +57,7 @@ def GetSamplesFromVine(vine_struct, n_sample, col_names, dp_ecdfs, vine_cores=1)
     Returns:
         DataFrame: A DataFrame with newly generated (pseudo-observations) samples from the vine-copula model.
     """
-    samp = pd.DataFrame(np.asarray(rvinecop.rvinecop(n_sample, vine_struct, cores = vine_cores)), columns=col_names)
+    samp = pd.DataFrame(np.asarray(vine_struct.simulate(n_sample, num_threads=vine_cores)), columns=col_names)
     return TransformToNatualScale(samp, dp_ecdfs)
 
 def GetSamplesFromVineOHE(vine_struct, n_sample, col_names, decoder, dp_ecdfs, constant_cols, constant_vals, vine_cores=1):

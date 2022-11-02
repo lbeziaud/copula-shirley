@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from category_encoders import WOEEncoder, GLMMEncoder, OneHotEncoder, OrdinalEncoder
 
-from utility_tests import BinaryLabelCheck
+from .utility_tests import BinaryLabelCheck
 
 def CEDecoder(decoder_dict):
     """Construct a custom decoder for to map the encoded data back to their natural scale (nominal values).

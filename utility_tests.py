@@ -5,7 +5,7 @@ from math import isinf, isnan
 import numpy as np
 import pandas as pd
 
-from scipy.stats import entropy, ks_2samp, spearmanr, SpearmanRConstantInputWarning
+from scipy.stats import entropy, ks_2samp, spearmanr, ConstantInputWarning
 from sklearn.neighbors import KernelDensity
 from sklearn.metrics import matthews_corrcoef, mean_squared_error
 from sklearn.linear_model import LinearRegression
@@ -228,7 +228,7 @@ def LocalCorr(sample, ref_col, q_col, percentile=0.05):
     cdf = ECDF(sample[ref_col])
     l = sample[sample[ref_col] <= cdf.inv(percentile)]
     h = sample[sample[ref_col] >= cdf.inv(1-percentile)]
-    warnings.simplefilter(action='ignore', category=SpearmanRConstantInputWarning)
+    warnings.simplefilter(action='ignore', category=ConstantInputWarning)
     return spearmanr(l[ref_col], l[q_col])[0], spearmanr(h[ref_col], h[q_col])[0]
 
 def BestPairForLocalCorr(sample, percentile=0.05):
