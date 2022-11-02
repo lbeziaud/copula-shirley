@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="copula-shirley",
     version="1.0.0",
-    packages=["copula_shirley"],
+    packages=find_packages(include=["copula_shirley"]),
     install_requires=[
         "category-encoders==2.5.1.post0",
         "diffprivlib==0.6.0",
